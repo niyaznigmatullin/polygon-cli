@@ -1,5 +1,5 @@
 import sys
-
+import os
 import requests
 
 from . import config
@@ -134,6 +134,9 @@ class ProblemSession:
         """
         self.login(login, password)
         links = self.get_problem_links()
+        self.store_new_session(links)
+
+    def store_new_session(self, links):
         if links['start'] is None and links['continue'] is None:
             raise ProblemNotFoundError()
         url = self.make_link(links['continue'] or links['start'])
@@ -374,3 +377,54 @@ class ProblemSession:
         parser = ContestPageParser()
         parser.feed(data)
         return parser.problems
+
+    def discard_everything(self):
+        def discard_callback(parser):
+            if parser.discardLink is None:
+                return
+            print('Discarding worling copy for problem %s: id = %s' % (parser.problemName, parser.problemId))
+            url = self.make_link(parser.discardLink, ccid=True)
+            b = self.send_request('POST', url).text
+        self.iterate_over_all_problems(discard_callback)
+
+    def iterate_over_all_problems(self, callback):
+        currentpage = 1
+        while True:
+            url = self.make_link('problems?page=%d' % currentpage, ccid=True)
+            problems_page = self.send_request('GET', url).text
+            parser = ProblemsPageParserAll(callback)
+            parser.feed(problems_page)
+            if currentpage >= parser.numberOfProblemPages:
+                break
+            currentpage += 1
+
+    def download_all_packages(self):
+        def download_package_callback(parser):
+            if parser.startLink is None and parser.continueLink is None:
+                return
+            if parser.package_revision is None:
+                print('No package for problem %s: id = %s' % (parser.problemName, parser.problemId))
+                return
+            filename = '%s-%s_p%05d.zip' % (parser.problemName, parser.package_revision, int(parser.problemId))
+            if os.path.isfile('/home/niyaz/tmp/polygon.lksh.ru/%s' % filename):
+                print('file %s already exists' % filename)
+                return
+            self.store_new_session({'continue' : parser.continueLink, 'start': parser.startLink, 'discard': parser.discardLink})
+            url = self.make_link('package', ssid=True, ccid=True)
+            data = self.send_request('GET', url).text
+            pack_parser = PackageParser()
+            pack_parser.feed(data)
+            print(pack_parser.url)
+            if pack_parser.url is None:
+                print('No package created')
+                return
+            link = self.make_link(pack_parser.url, ssid=True, ccid=False)
+            f = open(filename, 'wb')
+            r = self.send_request('GET', link)
+            for c in r.iter_content(1024):
+                if (c):
+                    f.write(c)
+            f.close()
+            self.sessionId = None
+        self.iterate_over_all_problems(download_package_callback)
+

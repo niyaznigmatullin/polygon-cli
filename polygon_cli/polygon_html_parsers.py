@@ -41,6 +41,68 @@ class ProblemsPageParser(HTMLParser):
         if tag == 'tr':
             self.inCorrectRow = False
 
+class ProblemsPageParserAll(HTMLParser):
+    def __init__(self, callback):
+        super().__init__()
+        self.continueLink = None
+        self.discardLink = None
+        self.startLink = None
+        self.inCorrectRow = False
+        self.tdId = 0
+        self.owner = ''
+        self.problemName = ''
+        self.problemId = None
+        self.callback = callback
+        self.numberOfProblemPages = 0
+        self.revisions = ''
+        self.package_revision = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'tr':
+            if len(attrs) > 1 and attrs[0][0] == "problemid":
+                self.inCorrectRow = True
+                self.problemId = attrs[0][1]
+                self.tdId = 0
+                self.problemName = ''
+                self.owner = ''
+                self.continueLink = None
+                self.discardLink = None
+                self.startLink = None
+                self.revisions = ''
+                self.package_revision = None
+        elif tag == 'td':
+            self.tdId += 1
+        elif tag == 'a' and self.inCorrectRow:
+            assert attrs[2][0] == 'class'
+            if attrs[2][1].startswith('CONTINUE'):
+                self.continueLink = attrs[0][1]
+            if attrs[2][1].startswith('DISCARD'):
+                self.discardLink = attrs[0][1]
+            if attrs[2][1].startswith('START'):
+                self.startLink = attrs[0][1]
+        if tag == 'a' and attrs[0][0] == 'href' and attrs[0][1].find('/problems?page=') >= 0:
+            link = attrs[0][1]
+            link = link[len('/problems?page='):]
+            self.numberOfProblemPages = int(link[:link.find('&')])
+
+    def handle_endtag(self, tag):
+        if tag == 'tr':
+            if '/' in self.revisions:
+                self.package_revision = self.revisions[self.revisions.find('/')+1:]
+                self.revisions = self.revisions[:self.revisions.find('/')]
+            if self.inCorrectRow:
+                self.callback(self)
+            self.inCorrectRow = False
+            self.problemId = None
+
+    def handle_data(self, data):
+        if self.inCorrectRow and self.tdId == 3:
+            self.problemName += data.strip()
+        if self.inCorrectRow and self.tdId == 4:
+            self.owner += data.strip()
+        if self.inCorrectRow and self.tdId == 5:
+            self.revisions += data.strip()
+
 
 class ContestPageParser(HTMLParser):
     def __init__(self):
@@ -260,3 +322,14 @@ class FindHandTestsParser(HTMLParser):
         if tag == "pre":
             if len(attrs) == 2 and attrs[0][0] == 'id' and attrs[0][1].startswith('text'):
                 self.tests.append(int(attrs[0][1][4:]))
+
+class PackageParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.url = None
+
+    def handle_starttag(self, tag, attrs):
+        if self.url is None and tag == "a":
+            for e in attrs:
+                if e[0] == 'href' and e[1].find('.zip') >= 0: # TODO change to something better
+                    self.url = e[1]
