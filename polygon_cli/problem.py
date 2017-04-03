@@ -573,7 +573,7 @@ class ProblemSession:
             for f in masks:
                 ret += glob.glob(os.path.join(directory, f))
             return ret
-        def upload_file_from_path(path, type, tag=None):
+        def upload_file_by_path(path, type, tag=None):
             f = open(path, 'rb')
             content = f.read()
             f.close()
@@ -671,16 +671,16 @@ class ProblemSession:
                 print(e)
         for filepath in get_files(["solutions/*.cpp", "solutions/*.java", "solutions/*.pas", "solutions/*.dpr", \
                                     "solutions/*.py", "solutions/*.c++"]):
-            upload_file_from_path(filepath, 'solution', 'RJ')
+            upload_file_by_path(filepath, 'solution', 'RJ')
         for filepath in get_files(["src/*.h", "src/testlib.pas"]):
             if os.path.basename(filepath) in {'testlib.h', 'olymp.sty', 'problem.tex', 'statements.ftl'}:
                 continue
-            upload_file_from_path(filepath, 'resource')
+            upload_file_by_path(filepath, 'resource')
         for filepath in get_files(["src/*.cpp", "src/*.c++", "src/*.pas", "src/*.java", "src/*.py", "src/*.dpr"]):
             if os.path.basename(filepath) in {'testlib.pas'}:
                 continue
-            upload_file_from_path(filepath, 'source')
             if os.path.splitext(os.path.basename(filepath))[0] in {'check', 'checker'}:
+            upload_file_by_path(filepath, 'source')
                 self.set_utility_file(os.path.basename(filepath), 'checker')
             if os.path.splitext(os.path.basename(filepath))[0] in {'validate', 'validator'}:
                 self.set_utility_file(os.path.basename(filepath), 'validator')
