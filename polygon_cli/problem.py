@@ -679,8 +679,8 @@ class ProblemSession:
         for filepath in get_files(["src/*.cpp", "src/*.c++", "src/*.pas", "src/*.java", "src/*.py", "src/*.dpr"]):
             if os.path.basename(filepath) in {'testlib.pas'}:
                 continue
-            if os.path.splitext(os.path.basename(filepath))[0] in {'check', 'checker'}:
             upload_file_by_path(filepath, 'source')
+            if os.path.splitext(os.path.basename(filepath))[0].lower() in {'check', 'checker'}:
                 self.set_utility_file(os.path.basename(filepath), 'checker')
-            if os.path.splitext(os.path.basename(filepath))[0] in {'validate', 'validator'}:
+            if os.path.splitext(os.path.basename(filepath))[0].lower() in {'validate', 'validator'}:
                 self.set_utility_file(os.path.basename(filepath), 'validator')
