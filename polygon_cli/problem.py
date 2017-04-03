@@ -589,7 +589,7 @@ class ProblemSession:
             test_file = open(test_s, 'rb')
             hsin_tests_added += 1
             options['testInput'] = test_file.read()
-            options['testDescription'] = 'polygon-cli import_problem, File %s' % test_s
+            options['testDescription'] = 'polygon-cli import_problem, File %s' % os.path.basename(test_s)
             options['testUseInStatements'] = 'true'
             options['testGroup'] = '0'
             test_file.close()
@@ -622,7 +622,7 @@ class ProblemSession:
                 options['testIndex'] = str(hsin_tests_added)
                 test_file = open(test_s, 'rb')
                 options['testInput'] = test_file.read()
-                options['testDescription'] = 'polygon-cli, File %s' % test_s
+                options['testDescription'] = 'polygon-cli, File %s' % os.path.basename(test_s)
                 options['testGroup'] = str(group) if hsin_groups_enabled else '1'
                 test_file.close()
                 try:
@@ -642,7 +642,7 @@ class ProblemSession:
                     options['testIndex'] = str(atcoder_tests)
                     test_file = open(test_s, 'rb')
                     options['testInput'] = test_file.read()
-                    options['testDescription'] = 'polygon-cli, File %s' % test_s
+                    options['testDescription'] = 'polygon-cli, File %s' % os.path.basename(test_s)
                     options['testGroup'] = str(group)
                     if group == 0:
                         options['testUseInStatements'] = 'true'
@@ -660,7 +660,7 @@ class ProblemSession:
             options['testIndex'] = str(test_id)
             test_file = open(test_s, 'rb')
             options['testInput'] = test_file.read()
-            options['testDescription'] = 'polygon-cli import_problem, File %s' % test_s
+            options['testDescription'] = 'polygon-cli import_problem, File %s' % os.path.basename(test_s)
             if test_s.endswith('.sample'):
                 options['testUseInStatements'] = 'true'
             test_file.close()
