@@ -672,7 +672,7 @@ class ProblemSession:
         for filepath in get_files(["solutions/*.cpp", "solutions/*.java", "solutions/*.pas", "solutions/*.dpr", \
                                     "solutions/*.py", "solutions/*.c++"]):
             upload_file_by_path(filepath, 'solution', 'RJ')
-        for filepath in get_files(["src/*.h", "src/testlib.pas"]):
+        for filepath in get_files(["src/*.h", "src/testlib.pas", "src/*.jar"]):
             if os.path.basename(filepath) in {'testlib.h', 'olymp.sty', 'problem.tex', 'statements.ftl'}:
                 continue
             upload_file_by_path(filepath, 'resource')
