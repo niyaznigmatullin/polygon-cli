@@ -3,9 +3,9 @@
 import os
 import re
 import shutil
-import string
 import sys
 from subprocess import Popen, PIPE
+import subprocess
 
 from . import config
 
@@ -18,7 +18,9 @@ def read_file(filename):
 
 
 def diff_files(old, our, theirs):
-    Popen(config.get_diff_tool(old, our, theirs), stdout=sys.stdout, shell=True)
+    subprocess.run(config.get_diff_tool(old, our, theirs),
+                   stdout=sys.stdout,
+                   shell=True)
 
 
 def safe_rewrite_file(path, content, openmode='wb'):
@@ -82,12 +84,17 @@ def get_local_solutions():
     return os.listdir(config.solutions_path)
 
 
+def need_update_groups(content):
+    match = re.search(rb"<#-- *group *(\d*) *-->", content)
+    return match is not None
+
+
 def parse_script_groups(content, hand_tests):
     groups = {"0": []}
     cur_group = "0"
     test_id = 0
     any = False
-    for i in filter(None, content.splitlines()):
+    for i in filter(lambda x: x.strip(), content.splitlines()):
         match = re.search(rb"<#-- *group *(\d*) *-->", i)
         if not match:
             t = i.split(b'>')[-1].strip()

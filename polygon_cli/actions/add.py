@@ -6,8 +6,6 @@ from ..local_file import LocalFile
 
 
 def process_add(file_type, solution_type, files):
-    if not load_session():
-        fatal('No session known. Use relogin or init first.')
     real_file_type = file_type
     if file_type in ['checker', 'validator', 'interactor']:
         if len(files) != 1:
@@ -41,7 +39,6 @@ def process_add(file_type, solution_type, files):
                 status = colors.error('Error')
         table.add_row([local.type, local.polygon_filename, local.filename, status])
     print(table)
-    save_session()
 
 
 def add_parser(subparsers):
@@ -49,10 +46,18 @@ def add_parser(subparsers):
             'add',
             help="Upload files to polygon"
     )
-    parser_add.add_argument('file_type', choices=['solution', 'resource', 'source', 'attachment', 'checker', 'validator', 'interactor'],
+    parser_add.add_argument('file_type', choices=['solution', 'resource', 'source', 'attachment', 'checker',
+                                                  'validator', 'interactor'],
                             help='Type of file to add')
     parser_add.add_argument('-t', dest='solution_type',
                             choices=['MAIN', 'OK', 'RJ', 'TL', 'WA', 'PE', 'ML', 'RE', 'TO'],
                             help='Solution type')
     parser_add.add_argument('file', nargs='+', help='List of files to add')
-    parser_add.set_defaults(func=lambda options: process_add(options.file_type, options.solution_type, options.file))
+
+    def read_options(options):
+        if not load_session_with_options(options):
+            fatal('No session known. Use relogin or init first.')
+        process_add(options.file_type, options.solution_type, options.file)
+        save_session()
+
+    parser_add.set_defaults(func=read_options)
