@@ -827,11 +827,42 @@ class ProblemSession:
             if os.path.basename(filepath) in {'testlib.h', 'olymp.sty', 'problem.tex', 'statements.ftl'}:
                 continue
             upload_file_by_path(filepath, 'resource')
+        def checker_try_to_set_standard(filepath):
+            f = open(filepath, 'r')
+            try:
+                content = f.read()
+                match = re.search("setName\(\s*\"([^\"]+)\"[^)]*\)", content)
+                found = None
+                if match is not None:
+                    name = match.group(1)
+                    if name.startswith('compare ordered sequences of signed'):
+                        found = 'ncmp'
+                    elif name.startswith('compare sequences of tokens'):
+                        found = 'wcmp'
+                    elif name.startswith('compare two signed huge integers'):
+                        found = 'hcmp'
+                    elif name.startswith('compare files as sequence of lines'):
+                        found = 'fcmp'
+                    elif name.startswith('compare two sequences of doubles'):
+                        match = re.search("EPS = 1E-(\d+)", content)
+                        if match is not None:
+                            found = 'rcmp' + match.group(1)
+                    elif name.startswith('compare files as sequence of tokens in lines'):
+                        found = 'lcmp'
+                if found is not None:
+                    found = 'std::' + found + '.cpp'
+                    self.set_utility_file(found, 'checker')
+                    print('Setting checker to %s' % found)
+                    return True
+                return False
+            finally:
+                f.close()
         for filepath in get_files(["src/*.cpp", "src/*.c++", "src/*.pas", "src/*.java", "src/*.py", "src/*.dpr"]):
             if os.path.basename(filepath) in {'testlib.pas'}:
                 continue
             upload_file_by_path(filepath, 'source')
             if os.path.splitext(os.path.basename(filepath))[0].lower() in {'check', 'checker'}:
-                self.set_utility_file(os.path.basename(filepath), 'checker')
+                if not checker_try_to_set_standard(filepath):
+                    self.set_utility_file(os.path.basename(filepath), 'checker')
             if os.path.splitext(os.path.basename(filepath))[0].lower() in {'validate', 'validator'}:
                 self.set_utility_file(os.path.basename(filepath), 'validator')
