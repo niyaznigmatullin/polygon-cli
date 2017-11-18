@@ -10,6 +10,7 @@ import os
 import glob
 import re
 import requests
+import chardet
 
 from . import config
 from . import polygon_file
@@ -866,3 +867,21 @@ class ProblemSession:
                     self.set_utility_file(os.path.basename(filepath), 'checker')
             if os.path.splitext(os.path.basename(filepath))[0].lower() in {'validate', 'validator'}:
                 self.set_utility_file(os.path.basename(filepath), 'validator')
+        def statement_guess_language(filename, encoding):
+            f = open(filename, 'r', encoding=encoding)
+            ans = "english"
+            for x in f.read():
+                if "яиеую".find(x) >= 0:
+                    ans = "russian"
+                    break
+            f.close()
+            return ans
+        def statement_guess_encoding(filename):
+            f = open(filename, 'rb')
+            encoding = chardet.detect(f.read())['encoding']
+            f.close()
+            return encoding
+        for filepath in get_files(["*.tex", "src/*.tex", "statement/*.tex", "statement/*/*.tex"]):
+            encoding = statement_guess_encoding(filepath)
+            language = statement_guess_language(filepath, encoding)
+            self.save_statement_from_file(filepath, encoding, language, True)
