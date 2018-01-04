@@ -903,3 +903,38 @@ class ProblemSession:
             encoding = statement_guess_encoding(filepath)
             language = statement_guess_language(filepath, encoding)
             self.save_statement_from_file(filepath, encoding, language, True)
+        for filepath in get_files(["statement/*.hsin"]):
+            language = "english"
+            existing_statements = self.send_api_request('problem.statements', {})
+            if existing_statements and language in existing_statements:
+                print('Statement of language %s already exists' % language)
+                continue
+            encoding = statement_guess_encoding(filepath)
+            f = open(filepath, 'rb')
+            statement_file = open(filepath, 'r', encoding=encoding)
+            text = statement_file.read()
+            content = 'THIS IS AUTOMATICALLY IMPORTED TEXT, PLEASE EDIT IT MANUALLY\n\n'
+            options = {'lang': language, 'encoding': 'UTF-8'}
+            match = re.match(r'.*Task\s(\S+)\s+(\d+)\D+(\d+).*', text, flags=re.S)
+            if match:
+                options['name'] = match.group(1)
+                self.update_info(None, None, int(match.group(2)) * 1000, int(match.group(3)), None)
+            text = re.sub('COCI 20.*Round #.*Task\s+\S+\s+\d+\s+\S+\s+/\s+\d+\s+\S+\s+/\s+\d+\s+points', '',
+                          text, flags=re.S)
+            match = re.match(r'.*INPUT(.*)OUTPUT.*', text, flags=re.S)
+            if match:
+                options['input'] = match.group(1)
+            match = re.match(r'.*OUTPUT(.*)SCORING.*', text, flags=re.S)
+            if match:
+                options['output'] = match.group(1)
+            match = re.match(r'.*SCORING(.*)SAMPLE.*', text, flags=re.S)
+            if match:
+                options['scoring'] = match.group(1)
+            match = re.match(r'.*SAMPLE.*(Clarification of.*)', text, flags=re.S)
+            if match:
+                options['notes'] = match.group(1)
+            text = re.sub(r'INPUT.*', '', text, flags=re.S)
+            content += text
+            options['legend'] = content
+            statement_file.close()
+            self.send_api_request('problem.saveStatement', options)
