@@ -782,10 +782,23 @@ class ProblemSession:
                 options['testGroup'] = str(group) if hsin_groups_enabled else '1'
                 test_file.close()
                 try:
-                    print('Adding %s hsin.hr test %d from group %d' % (test_s, hsin_tests_added, group))
+                    print('Adding %s hsin.hr test %d from group %d'
+                          % (test_s, hsin_tests_added, group if hsin_groups_enabled else 1))
                     self.send_api_request('problem.saveTest', options)
                 except PolygonApiError as e:
                     print(e)
+        if hsin_tests_added > 0:
+            groupstxt = 'group="0";\n'
+            hsin_groups = len(hsin_tests)
+            if not hsin_groups_enabled:
+                groupstxt += 'group="1"; feedback = "outcome"; points = "100"; require-groups = "0";\n'
+            else:
+                for i in range(hsin_groups):
+                    p = 100 // hsin_groups + (1 if 100 % hsin_groups + i >= hsin_groups else 0)
+                    groupstxt += 'group="%d"; feedback = "group-score-and-test"; scoring = "group"; ' \
+                                 'group-bonus = "%d"; require-groups = "0";\n' % (i + 1, p)
+            print('Adding attachment: groups.txt for hsin problem')
+            self.upload_file('groups.txt', 'attachment', groupstxt.encode(), True, None)
         # hsin_main = list(filter(lambda x: 'dummy' not in x, get_files(["hsintests/*.in.*"])))
         atcoder_tests = 0
         for group in range(0, 100):
