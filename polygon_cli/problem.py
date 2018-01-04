@@ -738,12 +738,12 @@ class ProblemSession:
         hsin_tests_added = 0
         for test_s in get_files(["*.dummy.in.*"]):
             test_id = int(test_s[test_s.rfind('.')+1:])
+            hsin_tests_added += 1
             options = {}
             options['checkExisting'] = 'true'
             options['testset'] = 'tests'
             options['testIndex'] = str(test_id)
             test_file = open(test_s, 'rb')
-            hsin_tests_added += 1
             options['testInput'] = test_file.read()
             options['testDescription'] = 'polygon-cli import_problem, File %s' % os.path.basename(test_s)
             options['testUseInStatements'] = 'true'
