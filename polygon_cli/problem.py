@@ -767,7 +767,7 @@ class ProblemSession:
             if test_id not in hsin_tests:
                 hsin_tests[test_id] = []
             hsin_tests[test_id].append(test_s)
-        hsin_tests = list((key, value) for (key, value) in hsin_tests.items())
+        hsin_tests = list((key, sorted(value)) for (key, value) in hsin_tests.items())
         hsin_tests.sort(key=lambda x: x[0])
         for group, tests in hsin_tests:
             for test_s in tests:
