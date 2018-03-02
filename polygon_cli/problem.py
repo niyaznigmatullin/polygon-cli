@@ -839,7 +839,7 @@ class ProblemSession:
             except PolygonApiError as e:
                 print(e)
         solution_files = get_files(["solutions/*.cpp", "solutions/*.java", "solutions/*.pas", "solutions/*.dpr", \
-                                    "solutions/*.py", "solutions/*.c++"])
+                                    "solutions/*.py", "solutions/*.c++", "solutions/*.c"])
         for filepath in solution_files:
             upload_file_by_path(filepath, 'solution', 'MA' if (len(solution_files) == 1) else 'RJ')
         for filepath in get_files(["src/*.h", "src/testlib.pas", "src/*.jar"]):
