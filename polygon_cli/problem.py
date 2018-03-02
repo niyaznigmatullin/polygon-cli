@@ -842,7 +842,7 @@ class ProblemSession:
                                     "solutions/*.py", "solutions/*.c++", "solutions/*.c"])
         for filepath in solution_files:
             upload_file_by_path(filepath, 'solution', 'MA' if (len(solution_files) == 1) else 'RJ')
-        for filepath in get_files(["src/*.h", "src/testlib.pas", "src/*.jar"]):
+        for filepath in get_files(["src/*.h", "src/testlib.pas", "src/*.jar", "src/*.cpp", "src/*.c"]):
             if os.path.basename(filepath) in {'testlib.h', 'olymp.sty', 'problem.tex', 'statements.ftl'}:
                 continue
             upload_file_by_path(filepath, 'resource')
