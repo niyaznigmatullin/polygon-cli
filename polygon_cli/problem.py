@@ -801,6 +801,7 @@ class ProblemSession:
             self.upload_file('groups.txt', 'attachment', groupstxt.encode(), True, None)
         # hsin_main = list(filter(lambda x: 'dummy' not in x, get_files(["hsintests/*.in.*"])))
         atcoder_tests = 0
+        atcoder_groups = []
         for group in range(0, 100):
             for test_id in range(0, 100):
                 for test_s in get_files(["tests/%d_%02d.txt" % (group, test_id)]):
@@ -813,6 +814,8 @@ class ProblemSession:
                     options['testInput'] = test_file.read()
                     options['testDescription'] = 'polygon-cli, File %s' % os.path.basename(test_s)
                     options['testGroup'] = str(group)
+                    if str(group) not in atcoder_groups:
+                        atcoder_groups.append(str(group))
                     if group == 0:
                         options['testUseInStatements'] = 'true'
                     test_file.close()
@@ -821,6 +824,17 @@ class ProblemSession:
                         self.send_api_request('problem.saveTest', options)
                     except PolygonApiError as e:
                         print(e)
+        if atcoder_tests > 0:
+            groupstxt = 'group="0";\n'
+            require_groups = "0"
+            for f in atcoder_groups:
+                if f == '0':
+                    continue
+                groupstxt += 'group="%s"; feedback = "group-score-and-test"; scoring = "group"; ' \
+                             'group-bonus = "0"; require-groups = "%s";\n' % (f, require_groups)
+                require_groups += " " + f
+            print('Adding attachment: groups.txt for atcoder problem')
+            self.upload_file('groups.txt', 'attachment', groupstxt.encode(), True, None)
         for test_s in get_files(["src/*.hand", "src/*.manual", "src/*.t", "src/*.sample"]):
             test_id = int(os.path.splitext(os.path.basename(test_s))[0])
             options = {}
