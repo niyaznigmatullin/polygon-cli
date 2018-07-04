@@ -501,26 +501,71 @@ class ProblemSession:
             result[problems[i]["name"]] = problems[i]["id"]
         return result
 
-    def download_last_package(self):
-        url = self.make_link('package', ssid=True, ccid=True)
-        data = self.send_request('GET', url).text
-        parser = PackageParser()
-        parser.feed(data)
-        print(parser.url)
-        if parser.url is None:
-            print('No package created')
-            return
-        link = self.make_link(parser.url, ssid=True, ccid=False)
-        filename = parser.url
-        filename = filename[:filename.find('.zip')]
-        filename = filename[filename.rfind('/') + 1:]
-        filename = filename[:filename.rfind('-')]
-        f = open('%s.zip' % (filename), 'wb')
-        r = self.send_request('GET', link)
-        for c in r.iter_content(1024):
-            if (c):
-                f.write(c)
+    def __download_package(self, package, filename=None):
+        assert self.problem_name is not None
+        content = self.send_api_request('problem.package', {'packageId': package['id']}, is_json=False)
+        if filename is None:
+            filename = "%s-%s_p%05d.zip" % (self.problem_name, package['revision'], int(self.problem_id))
+        f = open(filename, 'wb')
+        f.write(content)
         f.close()
+        return True
+
+    def download_package(self, revision, filename=None):
+        packages = self.send_api_request('problem.packages', {})
+        package = None
+        for x in packages:
+            if x['state'] != 'READY':
+                continue
+            if revision == int(x['revision']):
+                package = x
+                break
+        if package is None:
+            print('No package for revision %d of problem %s' % (revision, self.problem_name))
+            return False
+        return self.__download_package(package, filename)
+
+    def download_last_package(self, filename=None):
+        if self.problem_name is None:
+            problems = list(filter(lambda x: x['id'] == self.problem_id, self.get_problem_list()))
+            assert len(problems) == 1
+            self.problem_name = problems[0]['name']
+        packages = self.send_api_request('problem.packages', {})
+        package = None
+        for x in packages:
+            if x['state'] != 'READY':
+                continue
+            if package == None or int(package['id']) < int(x['id']):
+                package = x
+        if package is None:
+            print('No package for problem %s' % self.problem_name)
+            return False
+        return self.__download_package(package, filename)
+
+    def get_problem_list(self):
+        return self.send_api_request('problems.list', {}, problem_data=False)
+
+    def download_all_packages(self):
+        problems = self.get_problem_list()
+        for y in problems:
+            problem = ProblemSession(config.polygon_url, y['id'])
+            problem.problem_name = y['name']
+            if 'latestPackage' not in y:
+                print('No package for problem %s' % y['name'])
+                continue
+            name = ("%s-%s_p%05d.zip" % (y['name'], y['latestPackage'], int(y['id'])))
+            if len(glob.glob(name)) > 0:
+                print('Already have package for revision %s of problem %s' % (y['latestPackage'], y['name']))
+                continue
+            if problem.download_package(int(y['latestPackage']), filename=name):
+                print('Downloaded %s for revision %s of problem %s' % (name, y['latestPackage'], y['name']))
+
+    def download_contest_packages(self, contestId):
+        problems = self.send_api_request('contest.problems', {'contestId': contestId}, problem_data=False)
+        for y in problems.values():
+            problem = ProblemSession(config.polygon_url, y['id'])
+            if problem.download_last_package():
+                print('Downloaded package for %s' % y['name'])
 
     def save_statement_from_file(self, filepath, encoding, language, set_limits=False):
         existing_statements = self.send_api_request('problem.statements', {})
