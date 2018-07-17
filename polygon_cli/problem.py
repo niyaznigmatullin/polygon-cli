@@ -454,7 +454,7 @@ class ProblemSession:
             return True
         return self.update_groups(content)
 
-    def update_info(self, inputfile, outputfile, timelimit, memorylimit, interactive):
+    def update_info(self, inputfile=None, outputfile=None, timelimit=None, memorylimit=None, interactive=None):
         """
         Updates problem info
         :param inputfile: input file name or None if no update required
@@ -732,6 +732,10 @@ class ProblemSession:
                                                                'testUseInStatements' : 'true'})
                 except PolygonApiError as e:
                     print(e)
+            if len(groups) > 0:
+                if self.send_api_request('problem.enableGroups',
+                                         {'testset': testset_name, 'enable': 'true'}, is_json=False) is None:
+                    print("Couldn't enable groups for testset %s" % testset_name)
             for group, tests in groups.items():
                 print('Setting group %s for tests %s' % (group, str(tests)))
                 self.set_test_group(tests, group)
