@@ -747,12 +747,14 @@ class ProblemSession:
             for f in masks:
                 ret += glob.glob(os.path.join(directory, f))
             return ret
+
         def upload_file_by_path(path, type, tag=None):
             f = open(path, 'rb')
             content = f.read()
             f.close()
             print('Adding ' + type + ': ' + path)
             return self.upload_file(os.path.basename(path), type, content, True, tag)
+
         hsin_tests_added = 0
         for test_s in get_files(["*.dummy.in.*"]):
             test_id = int(test_s[test_s.rfind('.')+1:])
@@ -763,7 +765,7 @@ class ProblemSession:
             options['testIndex'] = str(test_id)
             test_file = open(test_s, 'rb')
             options['testInput'] = test_file.read()
-            options['testDescription'] = 'polygon-cli import_problem, File %s' % os.path.basename(test_s)
+            options['testDescription'] = 'polygon-cli import_folder, File %s' % os.path.basename(test_s)
             options['testUseInStatements'] = 'true'
             options['testGroup'] = '0'
             test_file.close()
@@ -861,7 +863,7 @@ class ProblemSession:
             options['testIndex'] = str(test_id)
             test_file = open(test_s, 'rb')
             options['testInput'] = test_file.read()
-            options['testDescription'] = 'polygon-cli import_problem, File %s' % os.path.basename(test_s)
+            options['testDescription'] = 'polygon-cli import_folder, File %s' % os.path.basename(test_s)
             if test_s.endswith('.sample'):
                 options['testUseInStatements'] = 'true'
             test_file.close()
@@ -878,6 +880,7 @@ class ProblemSession:
             if os.path.basename(filepath) in {'testlib.h', 'olymp.sty', 'problem.tex', 'statements.ftl'}:
                 continue
             upload_file_by_path(filepath, 'resource')
+
         def checker_try_to_set_standard(filepath):
             f = open(filepath, 'r')
             try:
@@ -908,6 +911,7 @@ class ProblemSession:
                 return False
             finally:
                 f.close()
+
         for filepath in get_files(["src/*.cpp", "src/*.c++", "src/*.pas", "src/*.java", "src/*.py", "src/*.dpr"]):
             if os.path.basename(filepath) in {'testlib.pas'}:
                 continue
@@ -917,6 +921,7 @@ class ProblemSession:
                     self.set_utility_file(os.path.basename(filepath), 'checker')
             if os.path.splitext(os.path.basename(filepath))[0].lower() in {'validate', 'validator'}:
                 self.set_utility_file(os.path.basename(filepath), 'validator')
+
         def statement_guess_language(filename, encoding):
             f = open(filename, 'r', encoding=encoding)
             ans = "english"
@@ -926,11 +931,13 @@ class ProblemSession:
                     break
             f.close()
             return ans
+
         def statement_guess_encoding(filename):
             f = open(filename, 'rb')
             encoding = chardet.detect(f.read())['encoding']
             f.close()
             return encoding
+
         for filepath in get_files(["*.tex", "src/*.tex", "statement/*.tex", "statement/*/*.tex"]):
             encoding = statement_guess_encoding(filepath)
             language = statement_guess_language(filepath, encoding)
