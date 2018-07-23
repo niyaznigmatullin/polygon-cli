@@ -872,11 +872,11 @@ class ProblemSession:
                 self.send_api_request('problem.saveTest', options)
             except PolygonApiError as e:
                 print(e)
-        solution_files = get_files(["solutions/*.cpp", "solutions/*.java", "solutions/*.pas", "solutions/*.dpr", \
-                                    "solutions/*.py", "solutions/*.c++", "solutions/*.c"])
+        solution_files = get_files(["solutions/*.cpp", "solutions/*.java", "solutions/*.pas", "solutions/*.dpr",
+                                    "solutions/*.py", "solutions/*.c++", "solutions/*.c", "solutions/*.kt"])
         for filepath in solution_files:
             upload_file_by_path(filepath, 'solution', 'MA' if (len(solution_files) == 1) else 'RJ')
-        for filepath in get_files(["src/*.h", "src/testlib.pas", "src/*.jar", "src/*.cpp", "src/*.c"]):
+        for filepath in get_files(["src/*.h", "src/testlib.pas", "src/*.jar", "src/*.cpp", "src/*.c", "src/*.kt"]):
             if os.path.basename(filepath) in {'testlib.h', 'olymp.sty', 'problem.tex', 'statements.ftl'}:
                 continue
             upload_file_by_path(filepath, 'resource')
@@ -912,7 +912,8 @@ class ProblemSession:
             finally:
                 f.close()
 
-        for filepath in get_files(["src/*.cpp", "src/*.c++", "src/*.pas", "src/*.java", "src/*.py", "src/*.dpr"]):
+        for filepath in get_files(["src/*.cpp", "src/*.c++", "src/*.pas", "src/*.java", "src/*.py", "src/*.dpr",
+                                   "src/*.kt"]):
             if os.path.basename(filepath) in {'testlib.pas'}:
                 continue
             upload_file_by_path(filepath, 'source')
