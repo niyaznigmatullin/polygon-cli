@@ -59,6 +59,8 @@ class ProblemSession:
         self.local_files = []
         self.relogin_done = False
         self.verbose = verbose
+        self.scores_enabled = False
+        self.groups_enabled = set()
 
     def use_ready_session(self, data):
         """
@@ -79,6 +81,15 @@ class ProblemSession:
         else:
             self.owner = data["owner"]
             self.problem_name = data["problemName"]
+            if data["version"] < 2:
+                for i in range(len(self.local_files)):
+                    if self.local_files[i].type == "statement":
+                        self.local_files[i].polygon_filename += ".tex"
+                        path = self.local_files[i].get_path()
+                        os.rename(path, path + ".tex")
+                        internal_path = self.local_files[i].get_internal_path()
+                        os.rename(internal_path, internal_path + ".tex")
+                        self.local_files[i].filename += ".tex"
 
     def dump_session(self):
         """
@@ -94,7 +105,7 @@ class ProblemSession:
         data["localFiles"] = self.local_files
         data["problemName"] = self.problem_name
         data["owner"] = self.owner
-        data["version"] = 1
+        data["version"] = 2
         return data
 
     def make_link(self, link, ccid=False, ssid=False):
@@ -289,7 +300,7 @@ class ProblemSession:
             for name, content in files_raw.items():
                 file = polygon_file.PolygonFile()
                 file.type = 'statement'
-                file.name = '%s/%s' % (lang, name)
+                file.name = '%s/%s.tex' % (lang, name)
                 file.content = polygon_file.PolygonFile.to_byte(content, encoding)
                 file.size = len(content)
                 files.append(file)
@@ -347,6 +358,8 @@ class ProblemSession:
 
     def upload_statement(self, name, content):
         lang, name = name.split('/')
+        if name.endswith(".tex"):
+            name = name[:-4]
         options = {
             'lang': lang,
             name: content,
@@ -403,7 +416,7 @@ class ProblemSession:
                 return local
         return None
 
-    def download_test(self, test_num, test_directory='.'):
+    def download_test(self, test_num, test_directory='.', input_pattern = '%03d', output_pattern = '%03d.a'):
         """
 
         :type test_num: str
@@ -412,11 +425,11 @@ class ProblemSession:
         input = self.send_api_request('problem.testInput',
                                       {'testset': 'tests', 'testIndex': test_num},
                                       is_json=False)
-        utils.safe_rewrite_file(test_directory + '/%03d' % int(test_num), utils.convert_newlines(input))
+        utils.safe_rewrite_file(test_directory + ('/' + input_pattern) % int(test_num), utils.convert_newlines(input))
         answer = self.send_api_request('problem.testAnswer',
                                        {'testset': 'tests', 'testIndex': test_num},
                                        is_json=False)
-        utils.safe_rewrite_file(test_directory + '/%03d.a' % int(test_num), utils.convert_newlines(answer))
+        utils.safe_rewrite_file(test_directory + ('/' + output_pattern) % int(test_num), utils.convert_newlines(answer))
 
     def download_all_tests(self):
         tests = self.send_api_request('problem.tests', {'testset': 'tests'})
@@ -427,16 +440,32 @@ class ProblemSession:
         return self.send_api_request('problem.script', {'testset': 'tests'}, is_json=False)
 
     def update_groups(self, script_content):
+        self.ensure_groups_enabled('tests')
         tests = self.get_tests()
         hand_tests = self.get_hand_tests_list(tests)
-        groups = utils.parse_script_groups(script_content, hand_tests)
+        groups, scores = utils.parse_script_groups(script_content, hand_tests)
         test_group = {i["index"]: i["group"] if "group" in i else None for i in tests}
+        test_score = {i["index"]: i["points"] if "points" in i else 0.0 for i in tests}
         if groups:
             for i in groups.keys():
                 bad_current_groups = list(filter(lambda x: test_group[x] != i, groups[i]))
                 if bad_current_groups:
                     print('Set group ' + str(i) + ' for tests ' + str(bad_current_groups))
                 self.set_test_group(bad_current_groups, i)
+                if scores[i] is not None:
+                    self.ensure_scores_enabled()
+                    need_score_test = groups[i][0]
+                    for t in groups[i]:
+                        score = test_score[t]
+                        need_score = scores[i]["score"] if t == need_score_test else 0.0
+                        if score != need_score:
+                            if bad_current_groups:
+                                print('Set score ' + str(need_score) + ' for test ' + str(t))
+                            self.set_test_score(t, i, need_score)
+            for i in groups.keys():
+                if scores[i] is not None and scores[i]["depends"] is not None:
+                    self.set_test_group_deps(i, scores[i]["depends"])
+
         return True
 
     def upload_script(self, content):
@@ -465,9 +494,11 @@ class ProblemSession:
         :returns boolean, if updated
         """
         options = {}
+
         def add_option(name, value):
             if value is not None:
                 options[name] = value
+
         add_option('inputFile', inputfile)
         add_option('outputFile', outputfile)
         add_option('timeLimit', timelimit)
@@ -483,6 +514,12 @@ class ProblemSession:
     def set_test_group(self, tests, group):
         for i in tests:
             self.send_api_request('problem.saveTest', {'testset': 'tests', 'testIndex': i, 'testGroup': group})
+
+    def set_test_score(self, test, group, score):
+        data = {'testset': 'tests', 'testIndex': test, 'testGroup': group, 'testPoints': score}
+        if score is None:
+            del data['testPoints']
+        self.send_api_request('problem.saveTest', data)
 
     def get_tests(self):
         return self.send_api_request('problem.tests', {'testset': 'tests'})
@@ -540,12 +577,12 @@ class ProblemSession:
             if match is not None:
                 tl = match.group(1)
                 print('Found TL = {} seconds'.format(tl))
-                tl = int(float(tl) * 1000) # seconds to ms
+                tl = int(float(tl) * 1000)  # seconds to ms
             match = re.search("{\s*(\d+)\s+[MmмМ][^}]*}", content)
             if match is not None:
                 ml = match.group(1)
                 print('Found ML = {} mebibytes'.format(ml))
-                ml = int(ml) # bytes to
+                ml = int(ml)  # bytes to
             self.update_info(None, None, tl, ml, None)
         content = content[content.find('\n') + 1:]
         input_format_start = content.find('\\InputFile')
@@ -599,7 +636,7 @@ class ProblemSession:
                 output_file_name = "stdout"
             any_testset = judging_node.find('testset')
             time_limit = int(any_testset.find('time-limit').text)
-            memory_limit = int(any_testset.find('memory-limit').text) // 2**20
+            memory_limit = int(any_testset.find('memory-limit').text) // 2 ** 20
             self.update_info(input_file_name, output_file_name, time_limit, memory_limit, None)
         if problem_node.find('tags') is not None:  # need API function to add tags
             tags = []
@@ -615,7 +652,8 @@ class ProblemSession:
                         description_content = self.send_api_request('problem.viewGeneralDescription', {})
                         if description_content == '':
                             description_content = document_file.read()
-                            self.send_api_request('problem.saveGeneralDescription', {'description': description_content})
+                            self.send_api_request('problem.saveGeneralDescription',
+                                                  {'description': description_content})
                 if os.path.basename(document_path) == 'tutorial.txt':
                     with open(document_path, 'r') as document_file:
                         tutorial_content = self.send_api_request('problem.viewGeneralTutorial', {})
@@ -631,7 +669,7 @@ class ProblemSession:
         for solution_node in assets_node.find('solutions').findall('solution'):
             xml_tag_to_api_tag = {'accepted': 'OK', 'main': 'MA', 'time-limit-exceeded': 'TL',
                                   'memory-limit-exceeded': 'ML', 'wrong-answer': 'WA',
-                                  'incorrect': 'RJ', 'rejected' : 'RJ', 'time-limit-exceeded-or-accepted' : "TO"}
+                                  'incorrect': 'RJ', 'rejected': 'RJ', 'time-limit-exceeded-or-accepted': "TO"}
             upload_file_from_node(solution_node, 'solution', xml_tag_to_api_tag[solution_node.attrib['tag']])
         files_node = problem_node.find('files')
         if files_node is not None:
@@ -655,7 +693,7 @@ class ProblemSession:
             if 'name' in checker_node.attrib and checker_node.attrib['name'].startswith('std::'):
                 checker_name = checker_node.attrib['name']
             else:
-                checker_name = checker_node.find('copy').attrib['path']
+                checker_name = os.path.basename(checker_node.find('source').attrib['path'])
             self.set_utility_file(checker_name, 'checker')
         validators_node = assets_node.find('validators')
         if validators_node is not None:
@@ -728,18 +766,39 @@ class ProblemSession:
                 try:
                     self.send_api_request('problem.saveTest', {'testset': testset_name,
                                                                'checkExisting': 'false',
-                                                               'testIndex' : str(test),
-                                                               'testUseInStatements' : 'true'})
+                                                               'testIndex': str(test),
+                                                               'testUseInStatements': 'true'})
                 except PolygonApiError as e:
                     print(e)
             if len(groups) > 0:
-                if self.send_api_request('problem.enableGroups',
-                                         {'testset': testset_name, 'enable': 'true'}, is_json=False) is None:
-                    print("Couldn't enable groups for testset %s" % testset_name)
+                self.ensure_groups_enabled(testset_name)
             for group, tests in groups.items():
                 print('Setting group %s for tests %s' % (group, str(tests)))
                 self.set_test_group(tests, group)
             assert (test_id == int(testset_node.find('test-count').text))
+
+    def ensure_groups_enabled(self, testset_name):
+        if testset_name not in self.groups_enabled:
+            self.groups_enabled.add(testset_name)
+            if self.send_api_request('problem.enableGroups',
+                                     {'testset': testset_name, 'enable': 'true'}, is_json=False) is None:
+                print("Couldn't enable groups for testset %s" % testset_name)
+
+    def ensure_scores_enabled(self):
+        if not self.scores_enabled:
+            self.scores_enabled = True
+            if self.send_api_request('problem.enablePoints',
+                                     {'enable': 'true'}, is_json=False) is None:
+                print("Couldn't enable scores for problem")
+
+    def set_test_group_deps(self, group, depends):
+        self.send_api_request('problem.saveTestGroup', {
+            'testset': 'tests',
+            'group': group,
+            'pointsPolicy': 'COMPLETE_GROUP',
+            'dependencies': ','.join(map(str, depends))
+        })
+
 
     def import_problem_from_folder(self, directory):
         def get_files(masks):
